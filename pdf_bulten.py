@@ -1,8 +1,4 @@
-"""
-PDF Bülten Oluşturucu - Operasyon Analiz Paneli
-Tüm dashboard grafiklerini ve metriklerini profesyonel PDF bülteni olarak dışa aktarır.
-Matplotlib tabanlı render (Kaleido bağımlılığı yok).
-"""
+
 import io
 import os
 import time
@@ -34,9 +30,6 @@ from reportlab.platypus import (
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-# ======================================================
-# FONT AYARLARI (TÜRKÇE KARAKTER DESTEĞİ İÇİN)
-# ======================================================
 try:
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
@@ -223,9 +216,6 @@ def get_kpi_unit_and_format(kpi_col):
         return "puan", "decimal"
     return "", "decimal"
 
-# ======================================================
-# MATPLOTLIB RENDER (KALEIDO YERİNE)
-# ======================================================
 
 def mpl_fig_to_rlimage(fig, width_px, height_px, dpi=100):
     """Matplotlib figure'ı ReportLab Image'a çevir."""
