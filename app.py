@@ -115,11 +115,7 @@ def koordinat_temizle(val):
 
 
 def koordinatlari_dogrula(df):
-    """Koordinatları doğrular ve düzeltir.
-    - Enlem/Boylam karışmışsa takas eder
-    - Türkiye sınırları dışındakileri filtreler
-    - Temizleme istatistiklerini döner (Vektörize edilmiş yüksek performanslı versiyon)
-    """
+
     istatistik = {"toplam_once": len(df), "takas": 0, "gecersiz": 0}
 
     # Türkiye koordinat sınırları
@@ -170,7 +166,6 @@ def jitter_uygula(df):
 
 
 def haversine_mesafe(lat1, lon1, lat2, lon2):
-    """İki koordinat arasındaki kuş uçuşu mesafeyi km cinsinden hesaplar (Numpy ile Vektörize)."""
     R = 6371.0
     lat1_r, lon1_r = np.radians(lat1), np.radians(lon1)
     lat2_r, lon2_r = np.radians(lat2), np.radians(lon2)
@@ -182,7 +177,6 @@ def haversine_mesafe(lat1, lon1, lat2, lon2):
 
 
 def excel_oku(uploaded_file):
-    """Yüklenen Excel dosyasını okur, gerekli sütunları kontrol eder ve temizler."""
     try:
         df = pd.read_excel(uploaded_file, engine="openpyxl")
     except Exception as e:
