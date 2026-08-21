@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-KVKK Korumalı Şifreli İsim Listesi Verisi.
-Bu dosya GitHub'a yüklendiğinde içerikteki kişisel veriler okunamaz.
-"""
+
 import base64
 import json
 import pandas as pd
