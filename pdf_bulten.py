@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from functools import lru_cache
 
-# Matplotlib - Kaleido yerine (Kaleido 0.2.x Windows'ta hang yapıyor)
 import matplotlib
 matplotlib.use('Agg')  # GUI olmadan render
 import matplotlib.pyplot as plt
@@ -78,7 +77,6 @@ except Exception:
         FONT_REGULAR = 'Helvetica'
         FONT_BOLD = 'Helvetica-Bold'
 
-# Matplotlib için Türkçe font ayarı
 try:
     plt.rcParams['font.family'] = 'DejaVu Sans'
     plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'Segoe UI', 'sans-serif']
@@ -86,10 +84,6 @@ except Exception:
     pass
 plt.rcParams['axes.unicode_minus'] = False
 
-
-# ======================================================
-# YARDIMCI FONKSİYONLAR
-# ======================================================
 
 @lru_cache(maxsize=4096)
 def saniye_formatla(s):
@@ -218,7 +212,6 @@ def get_kpi_unit_and_format(kpi_col):
 
 
 def mpl_fig_to_rlimage(fig, width_px, height_px, dpi=100):
-    """Matplotlib figure'ı ReportLab Image'a çevir."""
     buf = io.BytesIO()
     fig.savefig(buf, format='png', dpi=dpi, bbox_inches='tight', 
                 facecolor=fig.get_facecolor(), edgecolor='none')
@@ -228,10 +221,7 @@ def mpl_fig_to_rlimage(fig, width_px, height_px, dpi=100):
 
 
 def create_heatmap_image(heat_data, width_px=1400, height_px=800, secilen_bolge="Tümü"):
-    """
-    Smarter Auto-Framing Isı Haritası.
-    Bölgenin coğrafi yapısına göre (enlem/boylam) dinamik boyutlandırma yapar.
-    """
+
     if heat_data is None or heat_data.empty:
         return None
     
@@ -249,37 +239,29 @@ def create_heatmap_image(heat_data, width_px=1400, height_px=800, secilen_bolge=
         lons = clean["LON"].values.astype(float)
         lats = clean["LAT"].values.astype(float)
         
-        # --- 1. AKILLI KADRAJ HESAPLAMA ---
         lon_min, lon_max = lons.min(), lons.max()
         lat_min, lat_max = lats.min(), lats.max()
         
         lon_center = (lon_min + lon_max) / 2
         lat_center = (lat_min + lat_max) / 2
         
-        # Ham açıklıklar
         lon_delta = lon_max - lon_min
         lat_delta = lat_max - lat_min
         
-        # Minimum Kapsama Alanı (Örn: ~9km kuralı - aşırı zoom'u engellemek için)
         min_span = 0.08 
         lon_delta = max(lon_delta, min_span)
         lat_delta = max(lat_delta, min_span)
         
-        # Nefes alma payı (Padding %15)
         pad = 0.15
         x0, x1 = lon_center - (lon_delta * (0.5 + pad)), lon_center + (lon_delta * (0.5 + pad))
         y0, y1 = lat_center - (lat_delta * (0.5 + pad)), lat_center + (lat_delta * (0.5 + pad))
         
-        # --- 2. DİNAMİK ASPECT RATIO & FIGSIZE ---
-        # Dünya eğriliğini hesaba katarak coğrafi en-boy oranını bul (Antalya ~36.8N)
         lat_rad = np.radians(lat_center)
         geo_ratio = ((x1 - x0) * np.cos(lat_rad)) / (y1 - y0)
         
-        # Ana genişlik 18 inch (daha büyük render için), yüksekliği orana göre belirle
         fig_w = 18
         fig_h = fig_w / geo_ratio
         
-        # Aşırı dikey veya aşırı yatay bölgeleri dengele (Limitler esnetildi)
         if fig_h > 12:
             fig_h = 12
             fig_w = fig_h * geo_ratio
@@ -287,7 +269,6 @@ def create_heatmap_image(heat_data, width_px=1400, height_px=800, secilen_bolge=
             fig_h = 8
             fig_w = fig_h * geo_ratio
             
-        # Max genişlik kısıtı
         if fig_w > 22:
             fig_w = 22
             fig_h = fig_w / geo_ratio
@@ -295,12 +276,10 @@ def create_heatmap_image(heat_data, width_px=1400, height_px=800, secilen_bolge=
         fig, ax = plt.subplots(figsize=(fig_w, fig_h))
         fig.set_facecolor('white')
         
-        # Gerçek dünya ölçeğini koru (Kıyı şeridi basık durmasın)
         ax.set_aspect('equal')
         ax.set_xlim(x0, x1)
         ax.set_ylim(y0, y1)
         
-        # --- 3. ZOOM HESABI ---
         try:
             transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
             west, south, east, north = transformer.transform_bounds(x0, y0, x1, y1)
@@ -309,14 +288,11 @@ def create_heatmap_image(heat_data, width_px=1400, height_px=800, secilen_bolge=
         except:
             manual_zoom = 'auto'
 
-        # --- 4. KATMANLAR (Sandviç Mimari) ---
-        # Zemin - Uydu görüntüsü (Google Haritalar benzeri)
         try:
             ctx.add_basemap(ax, crs="EPSG:4326", source=ctx.providers.Esri.WorldImagery, zoom=manual_zoom, zorder=1)
         except:
             pass
         
-        # Isı (KDE Contourf)
         grid_res = 300
         xi = np.linspace(x0, x1, grid_res); yi = np.linspace(y0, y1, grid_res)
         Xi, Yi = np.meshgrid(xi, yi)
@@ -325,36 +301,29 @@ def create_heatmap_image(heat_data, width_px=1400, height_px=800, secilen_bolge=
         kernel = gaussian_kde(np.vstack([lons, lats]), bw_method=0.1)
         zi = np.reshape(kernel(positions), Xi.shape)
         
-        # Az iş yapılmış yerlerin çok daha belirgin olması için eşik %0.5'e düşürüldü
         threshold = zi.max() * 0.01
         zi_masked = np.ma.masked_where(zi < threshold, zi)
         
-        # İlk görseldeki "güzel" kırmızı-sarı renkler için palet (koyu mora gitmesini engelliyoruz, max=0.85)
         cmap_base = plt.cm.YlOrRd
         cmap_colors = cmap_base(np.linspace(0.10, 0.85, 256))
         
-        # Düşük yoğunluklu yerlerin iyice belirgin (sarı) olması için alpha kökü 0.20 yapıldı
         alphas = np.linspace(0.0, 1.0, 256) ** 0.30
         cmap_colors[:, 3] = alphas * 0.85 
         custom_cmap = LinearSegmentedColormap.from_list('YlOrRd_smooth', cmap_colors, N=256)
         
-        # 100 seviye (level) ile halka görüntüsü olmadan pürüzsüz geçiş sağlıyoruz
         ax.contourf(Xi, Yi, zi_masked, levels=np.linspace(threshold, zi.max(), 100), cmap=custom_cmap, zorder=2, antialiased=True)
         
-        # Etiketler - Isı katmanının ÜSTÜNDE (zorder=10) - Net ve okunakllı etiketler
         try:
             ctx.add_basemap(ax, crs="EPSG:4326", source=ctx.providers.CartoDB.PositronOnlyLabels, zoom=manual_zoom, zorder=10, alpha=1.0)
         except:
             pass
 
-        # --- 5. TEKNİK CİLA ---
         ax.set_xticks([]); ax.set_yticks([])
         for spine in ax.spines.values(): spine.set_visible(False)
         
-        # Başlık + Kalın Halo
         title_obj = ax.set_title(f"Isı Haritası\n{secilen_bolge.upper()}",
                                  fontsize=18, fontweight='bold', color='#000000', pad=18)
-        # Info Box + Kalın Halo
+      
         txt_obj = ax.text(0.02, 0.04, f"Analiz Kapsamı: {len(clean):,} İş Noktası",
                           transform=ax.transAxes, fontsize=12, color='#000000', fontweight='bold',
                           zorder=15, bbox=dict(boxstyle='round,pad=0.8', fc='white', alpha=0.95, ec='#1a237e', linewidth=2))
@@ -374,7 +343,6 @@ def create_heatmap_image(heat_data, width_px=1400, height_px=800, secilen_bolge=
 
 
 def _create_heatmap_fallback(heat_data, width_px, height_px, secilen_bolge):
-    """KDE/Contextily hata verirse basit scatter harita (fallback)."""
     try:
         clean = heat_data.dropna(subset=["LAT", "LON"])
         if len(clean) < 2:
@@ -398,12 +366,7 @@ def _create_heatmap_fallback(heat_data, width_px, height_px, secilen_bolge):
     except Exception:
         return None
 
-# ======================================================
-# STİL TANIMLARI
-# ======================================================
-
 def get_styles():
-    """PDF için özel stiller oluştur."""
     styles = getSampleStyleSheet()
     if 'Normal' in styles:
         styles['Normal'].fontName = FONT_REGULAR
@@ -484,20 +447,13 @@ def get_styles():
     ))
     return styles
 
-# ======================================================
-# VERİ HAZIRLAMA (GÜNLÜK TREND İÇİN)
-# ======================================================
 
-# Cache for preprocessed trend data to avoid redundant heavy calculations
 _TREND_CACHE = {}
 
 def prepare_trend_data_for_pdf(df, selected_kpi):
-    """Günlük trend grafiği için veriyi hesaplar. Ağır hesaplamaları cache'ler."""
     if df.empty:
         return pd.DataFrame()
     
-    # DataFrame'in ID'sini (hash veya object id) kullanarak cache kontrolü yapabiliriz
-    # Basitlik için df'in uzunluğu ve ilk/son tarihini anahtar olarak kullanalım
     cache_key = (len(df), df["Çizelgeleme Tarihi"].min(), df["Çizelgeleme Tarihi"].max())
     
     global _TREND_CACHE
@@ -568,12 +524,9 @@ def prepare_trend_data_for_pdf(df, selected_kpi):
 
     return daily
 
-# ======================================================
-# TABLO OLUŞTURUCU
-# ======================================================
+
 
 def build_kpi_cards(rows_keys, metrics_dict, styles):
-    """Üst bilgi KPI kartlarını her satır ayrı tablo olacak şekilde oluştur."""
     
     def saniye_to_int(s):
         try:
@@ -605,13 +558,10 @@ def build_kpi_cards(rows_keys, metrics_dict, styles):
     
     for row_keys in rows_keys:
         num_cols = len(row_keys)
-        # Sütun genişliklerini toplam genişliğe (780) göre ayarla
         total_w = 780
         col_w = total_w / 4 # 4 sütun genişliğinde kutular için standart birim
         
-        # Eğer 3 sütunluysa, yine 4 sütun genişliği kadar yer kaplamasın diye toplam genişliği daraltabiliriz
-        # ya da her sütunu biraz daha genişletip sayfayı kaplatabiliriz.
-        # Kullanıcı "ortala" dediği için, 3 sütunu 4 sütun biriminde tutup ortalayacağız.
+        
         row_table_w = col_w * num_cols
         
         row_data = []
@@ -659,16 +609,13 @@ def build_kpi_cards(rows_keys, metrics_dict, styles):
             ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
         ]))
         
-        # Tabloyu ortalamak için hAlign kullanıyoruz
         t.hAlign = 'CENTER'
         tables.append(t)
-        # Satırlar arası çok küçük bir boşluk veya sıfır boşluk
         # tables.append(Spacer(1, 1)) # Opsiyonel
         
     return tables
 
 def build_data_table(df, columns, title, styles, max_rows=50):
-    """Bölge/Personel DataFrame'den temiz, profesyonel PDF tablosu oluştur."""
     elements = []
     elements.append(Paragraph(title, styles['SectionTitle']))
     elements.append(Spacer(1, 8))
@@ -720,7 +667,7 @@ def build_data_table(df, columns, title, styles, max_rows=50):
     return elements
 
 def build_region_table(df, columns, title, styles, secilen_bolge, max_rows=50):
-    """Bölge tablosu için renk kodlamalı oluştur."""
+    
     
     def parse_value(val_str):
         try:
@@ -766,7 +713,6 @@ def build_region_table(df, columns, title, styles, secilen_bolge, max_rows=50):
             else:
                 val = str(val)
             
-            # Renk kodlaması sadece bölge satırları için ve belirli sütunlarda
             if is_bolge and secilen_bolge != "Tümü" and c in ["Ort. Kofra", "Ort. İş", "Ort. İlk İş", "İlk Kontak (Ort.)", "Ort. Son İş", "Son Kontak (Ort.)", "Ort. Süre (Dk)", "Ort. İş Arası Süre"]:
                 bolge_val = parse_value(str(row[c]))
                 genel_val = genel_values.get(c)
@@ -810,11 +756,7 @@ def build_region_table(df, columns, title, styles, secilen_bolge, max_rows=50):
     elements.append(t)
     return elements
 
-# ======================================================
-# GRAFİK OLUŞTURUCULAR (MATPLOTLIB)
-# ======================================================
 
-# Renk paleti (trend çizgileri için)
 _PRISM_COLORS = ['#5f4690','#1d6996','#38a6a5','#0f8554','#73af48',
                  '#edad08','#e17c05','#cc503e','#94346e','#6f4070']
 
