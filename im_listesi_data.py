@@ -9,7 +9,6 @@ _ENCRYPTED_DATA = "Fi9qDw4EGAQRFgljGQoQChAKEhQIFXhve2ZpZ39xBAcbZQcQa3F2f29uaH0GF
 
 def get_decrypted_df(key_str="MTH_KVKK_SECRET_2026"):
     try:
-        # Streamlit secrets'tan şifre alma seçeneği
         if hasattr(st, "secrets") and "PERSONEL_KEY" in st.secrets:
             key_str = st.secrets["PERSONEL_KEY"]
             
